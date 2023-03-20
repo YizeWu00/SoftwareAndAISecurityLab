@@ -19,5 +19,16 @@ namespace lab1A.sources
                    return devinfo_item.Replace("FriendlyName: ", "");
             return null;
         }
+
+        public static string GetHeaderValue(string[] headers, string name)
+        {
+            foreach (var header in headers)
+            {
+                var parts = header.Split(": " , 2);
+                if (parts.Length == 2 && parts[0] == name)
+                    return parts[1];
+            }
+            return null;
+        }
     }
 }

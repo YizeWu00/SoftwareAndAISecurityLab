@@ -6,8 +6,39 @@
         xmlns:local="clr-namespace:lab1A.sources"
         mc:Ignorable="d"
         Loaded="Window_Loaded"
-        Title="FlowWindow" Height="450" Width="800">
+        Closing="Window_Closing"
+        Title="FlowWindow" Height="601" Width="950" WindowState="Normal">
     <Grid>
-        
+        <Canvas>
+            <ComboBox x:Name="cb_filter" Text="输入过滤..." Width="950" IsEditable="True" HorizontalAlignment="Left" Canvas.Top="40" VerticalAlignment="Center" RenderTransformOrigin="0.5,0.5">
+                <ComboBox.RenderTransform>
+                    <TransformGroup>
+                        <ScaleTransform/>
+                        <SkewTransform/>
+                        <RotateTransform Angle="-0.098"/>
+                        <TranslateTransform/>
+                    </TransformGroup>
+                </ComboBox.RenderTransform>
+                <ComboBoxItem>ip</ComboBoxItem>
+                <ComboBoxItem>tcp</ComboBoxItem>
+                <ComboBoxItem>udp</ComboBoxItem>
+                <ComboBoxItem>http</ComboBoxItem>
+                <ComboBoxItem>icmp</ComboBoxItem>
+                <ComboBoxItem>arp</ComboBoxItem>
+            </ComboBox>
+            <DataGrid Name="dg_packets" AutoGenerateColumns="False"
+                ItemsSource="{Binding}" VerticalScrollBarVisibility="Visible" HorizontalAlignment="Left" Canvas.Top="61" VerticalAlignment="Center" Height="400" Width="950"
+                      IsReadOnly="True">
+                <DataGrid.Columns>
+                    <DataGridTextColumn Header="No." Width="50" Binding="{Binding Path=number}"></DataGridTextColumn>
+                    <DataGridTextColumn Header="Time" Width="100"  Binding="{Binding time}"></DataGridTextColumn>
+                    <DataGridTextColumn Header="Source" Width="150" Binding="{Binding source}"></DataGridTextColumn>
+                    <DataGridTextColumn Header="Destination" Width="150" Binding="{Binding destination}"></DataGridTextColumn>
+                    <DataGridTextColumn Header="Protocol" Binding="{Binding protocol}"></DataGridTextColumn>
+                    <DataGridTextColumn Header="Length" Binding="{Binding length}"></DataGridTextColumn>
+                    <DataGridTextColumn Header="Info" Width="*" Binding="{Binding info}"></DataGridTextColumn>
+                </DataGrid.Columns>
+            </DataGrid>
+        </Canvas>
     </Grid>
 </Window>
