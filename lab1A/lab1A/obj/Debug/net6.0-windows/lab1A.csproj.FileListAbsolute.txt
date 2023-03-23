@@ -54,3 +54,5 @@ E:\source\repos\SoftwareAndAISecurityLab\lab1A\lab1A\obj\Debug\net6.0-windows\la
 E:\source\repos\SoftwareAndAISecurityLab\lab1A\lab1A\obj\Debug\net6.0-windows\ref\lab1A.dll
 E:\source\repos\SoftwareAndAISecurityLab\lab1A\lab1A\obj\Debug\net6.0-windows\sources\FlowWindow.g.cs
 E:\source\repos\SoftwareAndAISecurityLab\lab1A\lab1A\obj\Debug\net6.0-windows\sources\FlowWindow.baml
+E:\source\repos\SoftwareAndAISecurityLab\lab1A\lab1A\obj\Debug\net6.0-windows\sources\TCPFlowTrack.g.cs
+E:\source\repos\SoftwareAndAISecurityLab\lab1A\lab1A\obj\Debug\net6.0-windows\sources\TCPFlowTrack.baml

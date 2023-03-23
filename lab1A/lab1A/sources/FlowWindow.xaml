@@ -7,28 +7,34 @@
         mc:Ignorable="d"
         Loaded="Window_Loaded"
         Closing="Window_Closing"
-        Title="FlowWindow" Height="601" Width="950" WindowState="Normal">
+        Title="FlowWindow" Height="800" Width="1200" WindowState="Normal">
     <Grid>
         <Canvas>
-            <ComboBox x:Name="cb_filter" Text="输入过滤..." Width="950" IsEditable="True" HorizontalAlignment="Left" Canvas.Top="40" VerticalAlignment="Center" RenderTransformOrigin="0.5,0.5">
-                <ComboBox.RenderTransform>
-                    <TransformGroup>
-                        <ScaleTransform/>
-                        <SkewTransform/>
-                        <RotateTransform Angle="-0.098"/>
-                        <TranslateTransform/>
-                    </TransformGroup>
-                </ComboBox.RenderTransform>
-                <ComboBoxItem>ip</ComboBoxItem>
-                <ComboBoxItem>tcp</ComboBoxItem>
-                <ComboBoxItem>udp</ComboBoxItem>
-                <ComboBoxItem>http</ComboBoxItem>
-                <ComboBoxItem>icmp</ComboBoxItem>
-                <ComboBoxItem>arp</ComboBoxItem>
-            </ComboBox>
+            <TextBox x:Name="tb_filter" Text="输入过滤..." Width="950" HorizontalAlignment="Left" Canvas.Top="40" VerticalAlignment="Center" RenderTransformOrigin="0.5,0.5"
+                  KeyUp="tb_filter_KeyUp"  >
+                <!--<TextBox.ContextMenu>
+                    <ContextMenu>
+                        <MenuItem>ip</MenuItem>
+                        <MenuItem>tcp</MenuItem>
+                        <MenuItem>udp</MenuItem>
+                        <MenuItem>http</MenuItem>
+                        <MenuItem>icmp</MenuItem>
+                        <MenuItem>arp</MenuItem>
+                    </ContextMenu>
+                </TextBox.ContextMenu>-->
+            </TextBox>
+
             <DataGrid Name="dg_packets" AutoGenerateColumns="False"
                 ItemsSource="{Binding}" VerticalScrollBarVisibility="Visible" HorizontalAlignment="Left" Canvas.Top="61" VerticalAlignment="Center" Height="400" Width="950"
-                      IsReadOnly="True">
+                      IsReadOnly="True"
+                      GridLinesVisibility="Horizontal" HorizontalGridLinesBrush="White"
+                      >
+                <!--<PropertyGroupDescription PropertyName="tcp"></PropertyGroupDescription>-->
+                <DataGrid.CellStyle>
+                    <Style TargetType="DataGridCell">
+                        <EventSetter Event="MouseRightButtonUp" Handler="dg_packets_DataGridCell_MouseRightButtonUp"></EventSetter>
+                    </Style>
+                </DataGrid.CellStyle>
                 <DataGrid.Columns>
                     <DataGridTextColumn Header="No." Width="50" Binding="{Binding Path=number}"></DataGridTextColumn>
                     <DataGridTextColumn Header="Time" Width="100"  Binding="{Binding time}"></DataGridTextColumn>
@@ -38,7 +44,38 @@
                     <DataGridTextColumn Header="Length" Binding="{Binding length}"></DataGridTextColumn>
                     <DataGridTextColumn Header="Info" Width="*" Binding="{Binding info}"></DataGridTextColumn>
                 </DataGrid.Columns>
+                <DataGrid.Resources>
+                    <Style x:Key="row_invisible" TargetType="{x:Type DataGridRow}">
+                        <Setter Property="Visibility" Value="Hidden"></Setter>
+                    </Style>
+                    <Style x:Key="row_tcp" TargetType="{x:Type DataGridRow}">
+                        <Setter Property="Visibility" Value="Visible"></Setter>
+                        <Setter Property="Background" Value="LightGreen"></Setter>
+                    </Style>
+                </DataGrid.Resources>
+                <DataGrid.RowStyle>
+                    <Style x:Name="row" TargetType="DataGridRow">
+                        <Style.Triggers>
+                            <DataTrigger Binding="{Binding visibility}" Value="Hidden">
+                                <Setter Property="Visibility" Value="Hidden"></Setter>
+                            </DataTrigger>
+                            <DataTrigger Binding="{Binding visibility}" Value="Visible">
+                                <Setter Property="Visibility" Value="Visible"></Setter>
+                            </DataTrigger>
+                            <DataTrigger Binding="{Binding visibility}" Value="Collapsed">
+                                <Setter Property="Visibility" Value="Collapsed"></Setter>
+                            </DataTrigger>
+                        </Style.Triggers>
+                        <Style.Setters>
+                            <Setter Property="Background" Value="{Binding background}"></Setter>
+                        </Style.Setters>
+                    </Style>
+                </DataGrid.RowStyle>
             </DataGrid>
+            <StackPanel Height="30" Canvas.Top="10" Width="900" Orientation="Horizontal">
+                <Button x:Name="btn_StopCapture" Content="停止" Click="btn_StopCapture_Click"></Button>
+                <Button x:Name="btn_RestartCapture" Content="重新开始" Click="btn_RestartCapture_Click"></Button>
+            </StackPanel>
         </Canvas>
     </Grid>
 </Window>

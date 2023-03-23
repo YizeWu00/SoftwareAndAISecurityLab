@@ -10,11 +10,11 @@ none
 false
 TRACE;DEBUG;NET;NET6_0;NETCOREAPP
 E:\source\repos\SoftwareAndAISecurityLab\lab1A\lab1A\App.xaml
-2-1951932768
+3-111932338
 
-51946774308
+8-286967717
 196-728042811
-MainWindow.xaml;sources\FlowWindow.xaml;
+MainWindow.xaml;sources\FlowWindow.xaml;sources\TCPFlowTrack.xaml;
 
 False
 
