@@ -18,6 +18,9 @@ using System.Windows.Media;
 using System.Windows.Media.Imaging;
 using System.Windows.Shapes;
 using System.Collections.Concurrent;
+using System.Runtime.CompilerServices;
+using System.IO;
+using System.Windows.Markup;
 
 namespace lab1A.sources
 {
@@ -39,6 +42,9 @@ namespace lab1A.sources
             this.startTime_lock = new object();
 
             this.filter = "";
+
+            this.tcp_stream_list = new TCPStreamList();
+            this.http_stream_list = new HTTPStreamList();
         }
         // Capture device instance
         private ICaptureDevice device;
@@ -52,7 +58,9 @@ namespace lab1A.sources
         private object startTime_lock;
         // filter string
         private string filter;
-
+        // streams
+        private TCPStreamList tcp_stream_list;
+        private HTTPStreamList http_stream_list;
         private void Window_Loaded(object sender, RoutedEventArgs e)
         {
             // Title
@@ -67,10 +75,13 @@ namespace lab1A.sources
             packets.Columns.Add("length", typeof(string));
             packets.Columns.Add("info", typeof(string));
             /* Unvisible */
-            packets.Columns.Add("raw", typeof(byte[]));
+            packets.Columns.Add("raw", typeof(string));
+            packets.Columns.Add("stream", typeof(string));
             packets.Columns.Add("protocol_tree", typeof(List<Protocol>));
             packets.Columns.Add("background", typeof(string));
             packets.Columns.Add("visibility", typeof(string));
+            
+            // dg packet source
             this.dg_packets.ItemsSource = packets.DefaultView;
             // Bind lock for consistency
             BindingOperations.EnableCollectionSynchronization(packets.DefaultView, packets_lock);
@@ -104,7 +115,7 @@ namespace lab1A.sources
             {
                 this.packetsCount += 1;
                 my_packetCount = this.packetsCount;
-                Trace.WriteLine($"Packet count: {my_packetCount}");
+                //Trace.WriteLine($"Packet count: {my_packetCount}");
             }
             // Time
             double arrivalRelativeTime = double.Parse(e.Packet.Timeval.ToString().Replace("s", ""));
@@ -131,7 +142,8 @@ namespace lab1A.sources
 
                 // Protocol, Source, Destination, Info
                 /* source, destination and information is depended on protocol */
-                string protocol = "", source = "", destination = "", info = "", background = "";
+                string source = "", destination = "", info = "", background = "";
+                byte[] byte_stream = null;
                 List<Protocol> protocol_tree = new List<Protocol>();
                 ARPPacket arp = (ARPPacket)ep.Extract(typeof(ARPPacket));
 
@@ -139,13 +151,8 @@ namespace lab1A.sources
                 {
                     ARPInfo arpinfo = new ARPInfo(arp); 
                     protocol_tree.Insert(0, arpinfo);
-                    protocol = "ARP";
                     source = arp.SenderHardwareAddress.ToString();
                     destination = arp.TargetHardwareAddress.ToString();
-                    if (arp.Operation is ARPOperation.Request)
-                        info = "Who has " + arp.TargetProtocolAddress.ToString() + "?" + " Tell " + arp.SenderProtocolAddress.ToString();
-                    else
-                        info = arp.SenderProtocolAddress.ToString() + "is at " + arp.SenderHardwareAddress.ToString();
                     background = "#FFCC00";
                 }
                 else //IP
@@ -166,10 +173,16 @@ namespace lab1A.sources
                     var udp = (UdpPacket)ep.Extract(typeof(UdpPacket));
                     if (tcp != null)
                     {
-                        TCPInfo tcpinfo = new TCPInfo(tcp);
+                        // Get tcpinfo
+                        TCPInfo tcpinfo = new TCPInfo(tcp, ipinfo.src_addr, ipinfo.dst_addr);
+                        // add to tcp stream
+                        tcpinfo.stream_id = AddPacketToTCPStreamList(tcpinfo, (int)my_packetCount);
+                        //Trace.WriteLine($"id is {tcpinfo.stream_id}");
+                        // insert to head of protocol tree
                         protocol_tree.Insert(0, tcpinfo);
                         source = ip.SourceAddress.ToString();
                         destination = ip.DestinationAddress.ToString();
+                        byte_stream = tcp.PayloadData; // can be null!
                         // Maybe http
                         var httpPayload = Encoding.ASCII.GetString(tcp.PayloadData);
                         var httpHeaders = httpPayload.Split("\r\n", StringSplitOptions.RemoveEmptyEntries);
@@ -178,22 +191,18 @@ namespace lab1A.sources
                             // Set protocol
                             HTTPInfo hTTPInfo = new HTTPInfo();
                             protocol_tree.Insert(0, hTTPInfo);
-                            protocol = "HTTP";
                             // Extract information from the HTTP headers
                             var userAgent = Utils.GetHeaderValue(httpHeaders, "User-Agent");
                             var host = Utils.GetHeaderValue(httpHeaders, "Host");
                             var referer = Utils.GetHeaderValue(httpHeaders, "Referer");
                             background = "#33FF66";
-                            // Print the extracted information
-                            //Trace.WriteLine("User-Agent: {0}", userAgent);
-                            //Trace.WriteLine("Host: {0}", host);
-                            //Trace.WriteLine("Referer: {0}", referer);
                         }
-                        if (protocol == "")
+                        if (protocol_tree[0].type != "http")
                         {
-                            info = tcp.SourcePort.ToString() + " -> " + tcp.DestinationPort.ToString();
                             background = "#CC99FF";
                         }
+                        // tcp stream
+
                     }
                     else if (icmpv4 != null)
                     {
@@ -219,6 +228,7 @@ namespace lab1A.sources
                         protocol_tree.Insert(0, uDPInfo);
                         source = ip.SourceAddress.ToString();
                         destination = ip.DestinationAddress.ToString();
+                        byte_stream = udp.PayloadData;
                         info = "UDP";
                         background = "#00CCFF";
                     }
@@ -235,8 +245,9 @@ namespace lab1A.sources
                 packet_row["destination"] = destination;
                 packet_row["protocol"] = protocol_tree[0].type.ToUpper() + protocol_tree[0].version;
                 packet_row["length"] = length.ToString();
-                packet_row["info"] = info;
-                packet_row["raw"] = ep.Bytes;
+                packet_row["info"] = InfoGenerator(protocol_tree);
+                packet_row["raw"] = BitConverter.ToString(ep.Bytes);
+                packet_row["stream"] = byte_stream == null? "" : System.Text.Encoding.ASCII.GetString(byte_stream);;
                 packet_row["protocol_tree"] = protocol_tree;
                 packet_row["background"] = background;
                 // add to datatable in seq                
@@ -247,9 +258,8 @@ namespace lab1A.sources
                     {
                         if (packets.Rows.Count == ((int)my_packetCount - 1))
                         {
-                            UpdateVisibilityOfRow(packet_row);
-                            Trace.WriteLine("1:" + my_packetCount.ToString());
-                            //packets.Rows.InsertAt(packet_row, (int)my_packetCount - 1);
+                            FilterVisibilityOfRow(packet_row);
+                            //Trace.WriteLine("1:" + my_packetCount.ToString());
                             packets.Rows.Add(packet_row);
                             isAdded = true;
                         }
@@ -259,7 +269,52 @@ namespace lab1A.sources
                 Refresh_Datagrid(this.dg_packets);
             }).Start();
         }
-
+        // add tcp info to stream
+        private int AddPacketToTCPStreamList(TCPInfo tcpinfo, int packet_num)
+        {
+            int id;
+            if ((id = tcp_stream_list.CompareAndAddPacketToStreamListSync(tcpinfo, packet_num)) < 0)
+            {
+                // failure, create stream and add
+                TCPStream new_stream = new TCPStream(tcpinfo.src_port, tcpinfo.dst_port, tcpinfo.src_ip_addr, tcpinfo.dst_ip_addr);
+                id = tcp_stream_list.AddStreamToStreamListSync(new_stream);
+                //Trace.WriteLine($"Create new id : {id}");
+            }
+            return id;
+        }
+        // Generate info item in datatable
+        private string InfoGenerator(List<Protocol> protocol_tree)
+        {
+            string info;
+            Protocol protocol = protocol_tree[0];
+            switch (protocol.type) 
+            {
+                case "arp":
+                    ARPInfo arp = (ARPInfo)protocol;
+                    if (arp.opcode is ARPOperation.Request)
+                        info = "Who has " + arp.dst_hw_addr.ToString() + "?" + " Tell " + arp.src_hw_addr.ToString();
+                    else if (arp.opcode is ARPOperation.Response)
+                        info = arp.src_hw_addr.ToString() + "is at " + arp.dst_hw_addr.ToString();
+                    else
+                        info = "Unsupported opcode";
+                    break;
+                case "tcp":
+                    TCPInfo tcp = (TCPInfo)protocol;
+                    info = tcp.src_port.ToString() + " -> " + tcp.dst_port.ToString();
+                    break;
+                case "http":
+                    info = "http";
+                    break;
+                case "icmp":
+                    info = "icmp";
+                    break;
+                case "udp":
+                    info = "udp";
+                    break;
+                default: info = "unknown"; break;
+            }
+            return info;
+        }
 
         private void Refresh_Datagrid(DataGrid dg)
         {
@@ -268,6 +323,8 @@ namespace lab1A.sources
             });
         }
 
+        // Indicate the row index of stream follow
+        private int row_index;
         /// <summary>
         /// ContextMenu for Flow Track
         /// </summary>
@@ -280,38 +337,108 @@ namespace lab1A.sources
             ContextMenu contextMenu = new ContextMenu();
             contextMenu.HasDropShadow = true;
             /* flow track item */
-            MenuItem flow_track = new MenuItem();
-            flow_track.Header = "追踪流";
+            MenuItem stream_follow = new MenuItem();
+            stream_follow.Header = "追踪流";
             // get the row index
             DataGridCell cell = sender as DataGridCell;
             DataGridRow r2 = DataGridRow.GetRowContainingElement(cell);
-            int row_index = r2.GetIndex();
-            DataRow row = packets.Rows[row_index];
+            this.row_index = r2.GetIndex();
+            DataRow row = packets.Rows[this.row_index];
             // If protocol trackable, show it in the menu
             List<Protocol> protocol_tree = (List<Protocol>)row["protocol_tree"];
             foreach (Protocol protocol in protocol_tree)
             {
-                if (protocol.IsTrackable)
+                if (protocol.IsFollowable)
                 {
-                    MenuItem flow_track_item = new MenuItem();
-                    flow_track_item.Header = protocol.type.ToUpper();
-                    flow_track.Items.Add(flow_track_item);
+                    MenuItem stream_follow_item = new MenuItem();
+                    stream_follow_item.Header = protocol.type.ToUpper();
+                    stream_follow_item.Click += new RoutedEventHandler(this.ShowStreamFollow);
+                    stream_follow.Items.Add(stream_follow_item);
                 }
             }
             // add "无" if no protocol can be tracked
-            if (flow_track.Items.Count == 0)
+            if (stream_follow.Items.Count == 0)
             {
                 MenuItem no_trackable_item = new MenuItem();
                 no_trackable_item.Header = "无";
                 no_trackable_item.Foreground = new SolidColorBrush(Colors.Gray);
                 no_trackable_item.IsEnabled = false;
-                flow_track.Items.Add(no_trackable_item);
+                stream_follow.Items.Add(no_trackable_item);
             }
             // add flow track option to main menu
-            contextMenu.Items.Add(flow_track);
+            contextMenu.Items.Add(stream_follow);
             contextMenu.IsOpen = true;
         }
+        // show the window of stream follow
+        private void ShowStreamFollow(object sender, RoutedEventArgs e)
+        {
+            MenuItem stream_follow_item =(MenuItem)sender;
+            if (stream_follow_item == null)
+            {
+                Trace.WriteLine("stream follow null");
+                return;
+            }
+            // stream window
+            StreamFollowWindow streamFollowWindow = new StreamFollowWindow();
+            streamFollowWindow.dg_stream.ItemsSource = packets.DefaultView;
+            // type
+            string stream_type = stream_follow_item.Header.ToString().ToLower();
+            // id
+            DataRow row = packets.Rows[this.row_index];
+            List<Protocol> protocol_tree = (List<Protocol>)row["protocol_tree"];
+            int stream_id = -1;
+            foreach (Protocol protocol in protocol_tree)
+            {
+                if (protocol.type == stream_type)
+                {
+                    // change to followable
+                    FollowableProtocol followableProtocol = (FollowableProtocol)protocol;
+                    stream_id = followableProtocol.stream_id; break;
+                }
+            }
+            if (stream_id == -1)
+            {
+                Trace.WriteLine("id not found??");
+                return;
+            }
+            // set visibility of packets by type and stream
+            this.filter = stream_type + ".stream eq " + stream_id.ToString();
+            tb_filter.Text = this.filter;
+            StreamFollowAllVisibility(stream_type, stream_id);
 
+            streamFollowWindow.Show();
+
+        }
+
+        // update stream follow all visibility
+        private void StreamFollowAllVisibility(string stream_type, int stream_id)
+        {
+            lock (packets_lock)
+            {
+                foreach (DataRow row in packets.Rows)
+                {
+                    bool isvisible = false;
+                    List<Protocol> protocol_tree = row["protocol_tree"] as List<Protocol>;
+                    foreach (Protocol protocol in protocol_tree)
+                    {
+                        if (protocol.IsFollowable == true && protocol.type == stream_type)
+                        {
+                            FollowableProtocol f = (FollowableProtocol)protocol;
+                            if (f.stream_id == stream_id)
+                            {
+                                isvisible = true;
+                                break;
+                            }
+
+                        }
+                    }
+                    if (!isvisible)
+                        row["visibility"] = "Collapsed";
+                    else
+                        row["visibility"] = "Visible";
+                }
+            }
+        }
 
         private void Window_Closing(object sender, System.ComponentModel.CancelEventArgs e)
         {
@@ -326,17 +453,17 @@ namespace lab1A.sources
             if (e.Key != Key.Enter) return;
             this.filter = tb_filter.Text;
             //Trace.WriteLine(this.filter);
-            UpdateAllVisibility();
+            FilterAllVisibility();
         }
 
         // set visibility of datagrid according to this.filter
-        private void UpdateAllVisibility()
+        private void FilterAllVisibility()
         {
             lock (packets_lock) // for consistency
             {
                 foreach (DataRow row in packets.Rows)
                 {
-                    UpdateVisibilityOfRow(row);
+                    FilterVisibilityOfRow(row);
                 }
             }
         }
@@ -349,7 +476,7 @@ namespace lab1A.sources
         }
 
         // for filter to update row's visibility
-        private void UpdateVisibilityOfRow(DataRow row)
+        private void FilterVisibilityOfRow(DataRow row)
         {
             if (this.filter == "")
             {
@@ -398,6 +525,16 @@ namespace lab1A.sources
             device.Open(DeviceMode.Promiscuous, readTimeoutMs);
             // start capture
             device.StartCapture();
+        }
+
+        // show packet hex in textbox
+        private void dg_packets_DataGridCell_MouseLeftButtonUp(object sender, MouseButtonEventArgs e)
+        {
+            DataGridCell cell = sender as DataGridCell;
+            DataGridRow r2 = DataGridRow.GetRowContainingElement(cell);
+            this.row_index = r2.GetIndex();
+            DataRow row = packets.Rows[this.row_index];
+            this.tb_raw_packet.Text = (string)row["raw"];
         }
     }
 }

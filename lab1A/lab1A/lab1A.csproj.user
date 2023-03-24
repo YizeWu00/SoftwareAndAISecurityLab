@@ -10,7 +10,7 @@
     <Compile Update="sources\FlowWindow.xaml.cs">
       <SubType>Code</SubType>
     </Compile>
-    <Compile Update="sources\TCPFlowTrack.xaml.cs">
+    <Compile Update="sources\StreamFollowWindow.xaml.cs">
       <SubType>Code</SubType>
     </Compile>
   </ItemGroup>
@@ -21,7 +21,7 @@
     <Page Update="sources\FlowWindow.xaml">
       <SubType>Designer</SubType>
     </Page>
-    <Page Update="sources\TCPFlowTrack.xaml">
+    <Page Update="sources\StreamFollowWindow.xaml">
       <SubType>Designer</SubType>
     </Page>
   </ItemGroup>

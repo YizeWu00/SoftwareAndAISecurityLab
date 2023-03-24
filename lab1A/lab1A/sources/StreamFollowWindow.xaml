@@ -1,0 +1,38 @@
+﻿<Window x:Class="lab1A.sources.StreamFollowWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        xmlns:local="clr-namespace:lab1A.sources"
+        mc:Ignorable="d"
+        Height="823" Width="1173">
+    <Grid>
+        <Canvas>
+            <DataGrid Height="600" Width="800" x:Name="dg_stream" ItemsSource="{Binding}" AutoGenerateColumns="False" HeadersVisibility="None" CanUserAddRows="False" Canvas.Left="186" Canvas.Top="49" HorizontalAlignment="Center" VerticalAlignment="Top"
+                      IsReadOnly="True">
+                <DataGrid.Columns>
+                    <DataGridTextColumn Header="" Width="*" Binding="{Binding stream}"></DataGridTextColumn>
+                </DataGrid.Columns>
+                <DataGrid.RowStyle>
+                    <Style x:Name="row" TargetType="DataGridRow">
+                        <Style.Triggers>
+                            <DataTrigger Binding="{Binding visibility}" Value="Hidden">
+                                <Setter Property="Visibility" Value="Hidden"></Setter>
+                            </DataTrigger>
+                            <DataTrigger Binding="{Binding visibility}" Value="Visible">
+                                <Setter Property="Visibility" Value="Visible"></Setter>
+                            </DataTrigger>
+                            <DataTrigger Binding="{Binding visibility}" Value="Collapsed">
+                                <Setter Property="Visibility" Value="Collapsed"></Setter>
+                            </DataTrigger>
+                        </Style.Triggers>
+                        <!--<Style.Setters>
+                            <Setter Property="Background" Value="{Binding background}"></Setter>
+                        </Style.Setters>-->
+                    </Style>
+                </DataGrid.RowStyle>
+
+            </DataGrid>
+        </Canvas>
+    </Grid>
+</Window>

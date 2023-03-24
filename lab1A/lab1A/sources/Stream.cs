@@ -1,9 +1,12 @@
 ﻿using PacketDotNet;
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
+using System.IO;
 using System.Linq;
 using System.Net;
 using System.Net.Sockets;
+using System.Reflection.Metadata;
 using System.Text;
 using System.Threading.Tasks;
 
@@ -12,58 +15,70 @@ namespace lab1A.sources
     public class Stream
     {
         public string? type;
-        public List<byte[]> payloads;
-        private object mylock;
+        public int id;
+        public List<int> packet_nums;
+        public object mylock;
         public Stream() 
         {
-            this.payloads = new List<byte[]>();
+            this.packet_nums = new List<int>();
             this.mylock = new object();
         }
-        // Payload status
-        public enum Payload_status
-        {
-            SUCCESS = 0,
-            LATE = 1,
-            PEND = 2,
-        }
         // add payload to flow (single thread)
-        private Payload_status Add_to_Flow(uint start, byte[] payload)
+        public virtual int CompareAndAddPacketToStream(Protocol protocol, int packet_num) { return -1; }
+    }
+
+    // stream list
+    public class StreamList
+    {
+        public string? type;
+        public List<Stream> stream_list;
+        public volatile int idCount;
+        public object mylock;
+        private object idCountLock;
+        public StreamList()
         {
-            return Payload_status.SUCCESS;
-            //uint end = start + (uint)payload.Length;
-            //if (end <= this.payload.Length)
-            //    return Payload_status.LATE;
-            //else if (this.payload.Length < start)
-            //{
-            //    // add packet to pend list
-            //    Add_to_Pend_List(start, payload);
-            //    return Payload_status.PEND;
-            //}
-            //else
-            //{
-            //    // at least 1 byte should be added to the flow
-            //    byte[] add = new byte[(end - this.payload.Length)];
-            //    payload.CopyTo(add, this.payload.Length - start);
-            //    this.payload = (byte[])this.payload.Concat(add);
-            //    // check if any pended item can be removed
-            //    Check_Pend_List_and_Add_to_Flow();
-            //    return Payload_status.SUCCESS;
-            //}
+            this.stream_list = new List<Stream>();
+            this.mylock= new object();
+            this.idCount = 0;
+            this.idCountLock = new object();
         }
-        // add payload to pend list (single thread)
-        //private void Add_to_Pend_List(uint start, byte[] payload)
-        //{
-        //    PendListItem pend_list_item = new PendListItem(start, payload);
-        //    this.pend_list.Add(pend_list_item);
-        //}
-        //// check and add
-        //private void Check_Pend_List_and_Add_to_Flow()
-        //{
-        //    foreach (PendListItem pend_item in this.pend_list)
-        //    {
-                
-        //    }
-        //}
+        public int CompareAndAddPacketToStreamListSync(Protocol protocol, int packet_num)
+        {
+            int id = -1;
+            lock (this.mylock)
+            {
+                foreach (Stream stream in this.stream_list)
+                {
+                    if ((id = stream.CompareAndAddPacketToStream(protocol, packet_num)) >= 0)
+                        break;
+                }
+            }
+            return id;
+        }
+        private int GetNewId()
+        {
+            int id;
+            lock (this.idCountLock)
+            {
+                id = idCount++;
+            }
+            return id;
+        }
+        /// <summary>
+        /// return id of this stream
+        /// </summary>
+        /// <param name="stream"></param>
+        /// <returns></returns>
+        public int AddStreamToStreamListSync(Stream stream)
+        {
+            int id = GetNewId();
+            lock (this.mylock)
+            {
+                stream.id = id;
+                this.stream_list.Add(stream);
+            }
+            return id;
+        }
     }
 
     public class TCPStream : Stream 
@@ -71,6 +86,7 @@ namespace lab1A.sources
         // pend list
         public UInt16 client_port, server_port;
         public IPAddress client_ip_addr, server_ip_addr;
+        public List<Direction> directions;
         public TCPStream(UInt16 client_port, UInt16 server_port, IPAddress client_ip_addr, IPAddress server_ip_addr)
         {
             this.type = "tcp";
@@ -78,7 +94,91 @@ namespace lab1A.sources
             this.server_port = server_port; 
             this.client_ip_addr = client_ip_addr;
             this.server_ip_addr = server_ip_addr;
+            this.directions = new List<Direction>();
         }
-        
+        // tcp connection status
+        public enum TCP_Status
+        {
+            NONE,
+            SYNC_CLIENT,
+            SYNC_SERVER,
+            ESTABLISHED,
+            FIN_CLIENT,
+            ACKFIN_SERVER,                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                      
+            FINACK_SERVER,
+            CLOSED
+        }
+        public enum Direction
+        {
+            ToClient,
+            ToServer,
+        }
+        /// <summary>
+        /// 同步，添加成功返回stream id，失败返回-1
+        /// </summary>
+        /// <param name="info"></param>
+        /// <param name="num"></param>
+        /// <returns></returns>
+        public override int CompareAndAddPacketToStream(Protocol protocol, int packet_num)
+        {
+            TCPInfo info = (TCPInfo)protocol;
+            //Trace.WriteLine("client port:" + this.client_port.ToString());
+            //Trace.WriteLine("server port:" + this.server_port.ToString());
+            //Trace.WriteLine("client ip:" + this.client_ip_addr.ToString());
+            //Trace.WriteLine("server ip:" + this.server_ip_addr.ToString());
+            //Trace.WriteLine("info src port:" + info.src_port.ToString());
+            //Trace.WriteLine("info dst port:" + info.dst_port.ToString());
+            //Trace.WriteLine("info src ip:" + info.src_ip_addr.ToString());
+            //Trace.WriteLine("info dst ip:" + info.dst_ip_addr.ToString());
+            //Trace.WriteLine(IPAddress.Equals(info.src_ip_addr, this.client_ip_addr));
+            //Trace.WriteLine(IPAddress.Equals(info.dst_ip_addr, this.server_ip_addr));
+            //Trace.WriteLine(info.src_port == this.client_port);
+            //Trace.WriteLine(info.dst_port == this.server_port);
+
+            if (IPAddress.Equals(info.src_ip_addr, this.client_ip_addr) && IPAddress.Equals(info.dst_ip_addr, this.server_ip_addr) && info.src_port == this.client_port && info.dst_port == this.server_port)
+            {
+                packet_nums.Add(packet_num);
+                directions.Add(Direction.ToServer);
+                return this.id;
+            }
+            else if (IPAddress.Equals(info.src_ip_addr, this.server_ip_addr) && IPAddress.Equals(info.dst_ip_addr, this.client_ip_addr) && info.src_port == this.server_port && info.dst_port != this.client_port)
+            {
+                packet_nums.Add(packet_num);
+                directions.Add(Direction.ToClient);
+                return this.id;
+            }
+            else
+            {
+                return -1;
+            }
+            
+        }
+    }
+
+    // http stream
+    public class HTTPStream : TCPStream
+    {
+        public HTTPStream(UInt16 client_port, UInt16 server_port, IPAddress client_ip_addr, IPAddress server_ip_addr) :
+            base (client_port, server_port, client_ip_addr, server_ip_addr)
+        {
+            this.type = "http";
+        }
+    }
+
+    // tcp stream list
+    public class TCPStreamList : StreamList
+    {
+        public TCPStreamList()
+        {
+            this.type= "tcp";
+        }
+    }
+    // http stream list
+    public class HTTPStreamList : StreamList
+    {
+        public HTTPStreamList()
+        {
+            this.type = "http";
+        }
     }
 }

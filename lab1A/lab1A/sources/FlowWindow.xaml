@@ -27,12 +27,13 @@
             <DataGrid Name="dg_packets" AutoGenerateColumns="False"
                 ItemsSource="{Binding}" VerticalScrollBarVisibility="Visible" HorizontalAlignment="Left" Canvas.Top="61" VerticalAlignment="Center" Height="400" Width="950"
                       IsReadOnly="True"
-                      GridLinesVisibility="Horizontal" HorizontalGridLinesBrush="White"
+                      GridLinesVisibility="Horizontal" HorizontalGridLinesBrush="White" CanUserAddRows="False"
                       >
                 <!--<PropertyGroupDescription PropertyName="tcp"></PropertyGroupDescription>-->
                 <DataGrid.CellStyle>
                     <Style TargetType="DataGridCell">
                         <EventSetter Event="MouseRightButtonUp" Handler="dg_packets_DataGridCell_MouseRightButtonUp"></EventSetter>
+                        <EventSetter Event="MouseLeftButtonUp" Handler="dg_packets_DataGridCell_MouseLeftButtonUp"></EventSetter>
                     </Style>
                 </DataGrid.CellStyle>
                 <DataGrid.Columns>
@@ -45,13 +46,13 @@
                     <DataGridTextColumn Header="Info" Width="*" Binding="{Binding info}"></DataGridTextColumn>
                 </DataGrid.Columns>
                 <DataGrid.Resources>
-                    <Style x:Key="row_invisible" TargetType="{x:Type DataGridRow}">
+                    <!--<Style x:Key="row_invisible" TargetType="{x:Type DataGridRow}">
                         <Setter Property="Visibility" Value="Hidden"></Setter>
-                    </Style>
-                    <Style x:Key="row_tcp" TargetType="{x:Type DataGridRow}">
+                    </Style>-->
+                    <!--<Style x:Key="row_tcp" TargetType="{x:Type DataGridRow}">
                         <Setter Property="Visibility" Value="Visible"></Setter>
                         <Setter Property="Background" Value="LightGreen"></Setter>
-                    </Style>
+                    </Style>-->
                 </DataGrid.Resources>
                 <DataGrid.RowStyle>
                     <Style x:Name="row" TargetType="DataGridRow">
@@ -76,6 +77,7 @@
                 <Button x:Name="btn_StopCapture" Content="停止" Click="btn_StopCapture_Click"></Button>
                 <Button x:Name="btn_RestartCapture" Content="重新开始" Click="btn_RestartCapture_Click"></Button>
             </StackPanel>
+            <TextBox x:Name="tb_raw_packet" TextWrapping="Wrap" Canvas.Top="466" HorizontalAlignment="Left" Height="234" VerticalAlignment="Top" Width="950"/>
         </Canvas>
     </Grid>
 </Window>

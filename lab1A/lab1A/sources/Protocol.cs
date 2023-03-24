@@ -16,32 +16,49 @@ namespace lab1A.sources
         /// <summary>
         /// Trackable or not
         /// </summary>
-        public bool IsTrackable;
+        public bool IsFollowable;
+    }
+    public class FollowableProtocol : Protocol
+    {
+        public int stream_id;
+        public FollowableProtocol() 
+        {
+            this.IsFollowable = true;
+        }
+    }
+    public class UnfollowableProtocol : Protocol
+    {
+        public int stream_id;
+        public UnfollowableProtocol()
+        {
+            this.IsFollowable = false;
+        }
     }
 
     // HTTP info
-    public class HTTPInfo : Protocol
+    public class HTTPInfo : FollowableProtocol
     {
         public HTTPInfo()
         {
             this.type = "http";
-            this.IsTrackable = true;
         }
     }
 
     // TCP info
-    public class TCPInfo : Protocol
+    public class TCPInfo : FollowableProtocol
     {
+        // normal
         public UInt16 src_port, dst_port;
         public UInt32 seq_num, ack_num;
         public int data_offset;
         public byte flag;
         public bool urg, ack, psh, rst, syn, fin, ECN, CWR;
         public uint window_size;
-        public TCPInfo(TcpPacket packet)
+        // util
+        public IPAddress src_ip_addr, dst_ip_addr;
+        public TCPInfo(TcpPacket packet, IPAddress src_ip_addr, IPAddress dst_ip_addr)
         {
             this.type = "tcp";
-            this.IsTrackable = true;
             this.src_port = (UInt16)(packet.SourcePort);
             this.dst_port = (UInt16)(packet.DestinationPort);
             this.seq_num = packet.SequenceNumber;
@@ -50,17 +67,19 @@ namespace lab1A.sources
             this.flag = packet.AllFlags;
             this.urg = packet.Urg; this.ack = packet.Ack; this.psh = packet.Psh; this.rst = packet.Rst; this.syn = packet.Syn; this.fin = packet.Fin; this.ECN = packet.ECN; this.CWR = packet.CWR; 
             this.window_size = packet.WindowSize;
+
+            this.src_ip_addr = src_ip_addr;
+            this.dst_ip_addr = dst_ip_addr;
         }
     }
 
     // IP info
-    public class IPInfo : Protocol
+    public class IPInfo : UnfollowableProtocol
     {
         public IPAddress src_addr, dst_addr;
         public IPInfo(IpPacket packet)
         {
             this.type = "ip";
-            this.IsTrackable = false;
             this.version = packet.Version.ToString();
             this.src_addr = packet.SourceAddress;
             this.dst_addr = packet.DestinationAddress;
@@ -68,7 +87,7 @@ namespace lab1A.sources
     }
 
     // ARP info
-    public class ARPInfo : Protocol
+    public class ARPInfo : UnfollowableProtocol
     {
         public EthernetPacketType protocol_addr_type;
         public ARPOperation opcode;
@@ -77,7 +96,6 @@ namespace lab1A.sources
         public ARPInfo(ARPPacket packet) 
         {
             this.type = "arp";
-            this.IsTrackable = false;
             this.protocol_addr_type = packet.ProtocolAddressType;
             this.opcode = packet.Operation;
             this.src_ip_addr = packet.SenderProtocolAddress; this.dst_ip_addr = packet.TargetProtocolAddress;
@@ -85,29 +103,26 @@ namespace lab1A.sources
         }
     } 
     // icmp info
-    public class ICMPInfo : Protocol
+    public class ICMPInfo : UnfollowableProtocol
     {
         public ICMPInfo(ICMPv4Packet packet)
         {
             this.type = "icmp";
             this.version = "v4";
-            this.IsTrackable = false;
         }
         public ICMPInfo(ICMPv6Packet packet)
         {
             this.type = "icmp";
             this.version = "v6";
-            this.IsTrackable = false;
         }
     }
     // udp info
-    public class UDPInfo : Protocol
+    public class UDPInfo : FollowableProtocol
     {
         public int src_port, dst_port;
         public UDPInfo(UdpPacket packet)
         {
             this.type = "udp";
-            this.IsTrackable = true;
             this.src_port = packet.SourcePort;
             this.dst_port = packet.DestinationPort;
         }
