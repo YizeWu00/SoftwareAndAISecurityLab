@@ -87,11 +87,12 @@ namespace lab1A.sources
         public UInt16 client_port, server_port;
         public IPAddress client_ip_addr, server_ip_addr;
         public List<Direction> directions;
+        public UInt32 client_seq_start, server_seq_start;
         public TCPStream(UInt16 client_port, UInt16 server_port, IPAddress client_ip_addr, IPAddress server_ip_addr)
         {
             this.type = "tcp";
             this.client_port = client_port;
-            this.server_port = server_port; 
+            this.server_port = server_port;
             this.client_ip_addr = client_ip_addr;
             this.server_ip_addr = server_ip_addr;
             this.directions = new List<Direction>();

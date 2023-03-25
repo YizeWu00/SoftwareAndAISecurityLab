@@ -21,6 +21,7 @@ using System.Collections.Concurrent;
 using System.Runtime.CompilerServices;
 using System.IO;
 using System.Windows.Markup;
+using System.Text.RegularExpressions;
 
 namespace lab1A.sources
 {
@@ -286,21 +287,34 @@ namespace lab1A.sources
         private string InfoGenerator(List<Protocol> protocol_tree)
         {
             string info;
+            Regex info_start = new Regex(", ");
             Protocol protocol = protocol_tree[0];
             switch (protocol.type) 
             {
                 case "arp":
                     ARPInfo arp = (ARPInfo)protocol;
                     if (arp.opcode is ARPOperation.Request)
-                        info = "Who has " + arp.dst_hw_addr.ToString() + "?" + " Tell " + arp.src_hw_addr.ToString();
+                        info = "Who has " + arp.dst_ip_addr.ToString() + "?" + " Tell " + arp.src_ip_addr.ToString();
                     else if (arp.opcode is ARPOperation.Response)
-                        info = arp.src_hw_addr.ToString() + "is at " + arp.dst_hw_addr.ToString();
+                        info = arp.src_ip_addr.ToString() + "is at " + arp.dst_ip_addr.ToString();
                     else
                         info = "Unsupported opcode";
                     break;
                 case "tcp":
                     TCPInfo tcp = (TCPInfo)protocol;
                     info = tcp.src_port.ToString() + " -> " + tcp.dst_port.ToString();
+                    // flag info
+                    string flag_info = "";
+                    if (tcp.syn) flag_info += "SYN";
+                    if (tcp.fin) flag_info += "FIN";
+                    if (tcp.rst) flag_info += "RST";
+                    if (tcp.ack) flag_info += ", ACK";
+                    // remove ", " if startswith
+                    if (flag_info.StartsWith(", "))
+                        flag_info = info_start.Replace(flag_info, "", 1);
+                    info += " [" + flag_info + "]";
+                    //// seq ack info
+                    //info += tcp.seq_num.ToString();
                     break;
                 case "http":
                     info = "http";
